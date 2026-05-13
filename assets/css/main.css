@@ -27,18 +27,8 @@ body {
 }
 
 /* =========================================
-   CAPAS DE EFECTOS VISUALES (FX)
+   ELEMENTOS DE PANTALLA (Mira)
    ========================================= */
-.fx-overlay {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    pointer-events: none;
-    z-index: 5;
-    box-shadow: inset 0 0 150px rgba(0,0,0,0.9);
-    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
-    background-size: 100% 4px, 6px 100%;
-}
-
 .crosshair {
     position: fixed;
     top: 50%; left: 50%;
@@ -98,17 +88,17 @@ body {
     font-size: 1.05rem;
     font-weight: 700;
     padding: 0.4rem 1.2rem;
-    background: rgba(0, 0, 0, 0.8); /* Fondo negro casi sólido dentro del botón */
+    background: rgba(0, 0, 0, 0.8);
     border-radius: 4px;
     letter-spacing: 1px;
-    color: #ffffff; /* Texto principal siempre blanco */
+    color: #ffffff;
     border: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     align-items: center;
 }
 
 .hud-subtext {
-    color: #e0e0e0; /* Gris muy claro, altamente legible */
+    color: #e0e0e0;
     font-weight: 500;
     margin-left: 6px;
     font-size: 0.9rem;
