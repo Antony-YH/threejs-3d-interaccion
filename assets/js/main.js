@@ -28,7 +28,7 @@ directionalLight.shadow.camera.near = 0.01;
 directionalLight.shadow.camera.far = 500;
 directionalLight.shadow.camera.right = 30;
 directionalLight.shadow.camera.left = - 30;
-directionalLight.shadow.camera.top	= 30;
+directionalLight.shadow.camera.top  = 30;
 directionalLight.shadow.camera.bottom = - 30;
 directionalLight.shadow.mapSize.width = 1024;
 directionalLight.shadow.mapSize.height = 1024;
@@ -47,10 +47,17 @@ renderer.shadowMap.type = THREE.VSMShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 container.appendChild( renderer.domElement );
 
+// ==========================================
+// CONFIGURACIÓN DE STATS (FPS) ACOMODADA
+// ==========================================
 const stats = new Stats();
 stats.domElement.style.position = 'absolute';
-stats.domElement.style.top = '0px';
+stats.domElement.style.top = '75px'; // Lo bajamos para que no lo tape la navbar
+stats.domElement.style.left = '15px'; // Margen a la izquierda
+stats.domElement.style.zIndex = '100'; // Aseguramos que esté por encima del canvas
+stats.domElement.style.filter = 'drop-shadow(0px 0px 4px rgba(0, 243, 255, 0.5))'; // Brillo neón sutil
 container.appendChild( stats.domElement );
+// ==========================================
 
 const GRAVITY = 30;
 const NUM_SPHERES = 100;
@@ -285,7 +292,6 @@ function controls( deltaTime ) {
     }
 }
 
-// ATENCIÓN: Ruta del modelo ajustada a la estructura de tu proyecto
 const loader = new GLTFLoader().setPath( './assets/models/gltf/' );
 
 loader.load( 'collision-world.glb', ( gltf ) => {
