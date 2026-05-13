@@ -47,44 +47,54 @@ renderer.shadowMap.type = THREE.VSMShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 container.appendChild( renderer.domElement );
 
-// ==========================================
-// CONFIGURACIÓN DE STATS (FPS) ACOMODADA
-// ==========================================
+// Configuración de Stats (FPS)
 const stats = new Stats();
 stats.domElement.style.position = 'absolute';
-stats.domElement.style.top = '75px'; // Lo bajamos para que no lo tape la navbar
-stats.domElement.style.left = '15px'; // Margen a la izquierda
-stats.domElement.style.zIndex = '100'; // Aseguramos que esté por encima del canvas
-stats.domElement.style.filter = 'drop-shadow(0px 0px 4px rgba(0, 243, 255, 0.5))'; // Brillo neón sutil
+stats.domElement.style.top = '75px'; 
+stats.domElement.style.left = '15px'; 
+stats.domElement.style.zIndex = '100'; 
+stats.domElement.style.filter = 'drop-shadow(0px 0px 4px rgba(0, 243, 255, 0.5))'; 
 container.appendChild( stats.domElement );
-// ==========================================
 
 const GRAVITY = 30;
-const NUM_SPHERES = 100;
-const SPHERE_RADIUS = 0.2;
+const NUM_PROJECTILES = 100;
+const PROJECTILE_RADIUS = 0.2;
 const STEPS_PER_FRAME = 5;
 
-const sphereGeometry = new THREE.IcosahedronGeometry( SPHERE_RADIUS, 5 );
-const sphereMaterial = new THREE.MeshLambertMaterial( { color: 0xdede8d } );
+// ==========================================
+// CREACIÓN DE LOS DIAMANTES
+// ==========================================
+// OctahedronGeometry con detalle 0 da la forma de un diamante/cristal
+const diamondGeometry = new THREE.OctahedronGeometry( PROJECTILE_RADIUS, 0 );
 
-const spheres = [];
-let sphereIdx = 0;
+// Material brillante estilo joya/neón
+const diamondMaterial = new THREE.MeshStandardMaterial( { 
+    color: 0xff00ea,    // Magenta Neón muy llamativo
+    roughness: 0.2,     // Superficie un poco lisa
+    metalness: 0.8,     // Refleja la luz como metal/cristal
+    flatShading: true   // Marca bien las caras del diamante (low-poly style)
+} );
 
-for ( let i = 0; i < NUM_SPHERES; i ++ ) {
+const projectiles = [];
+let projectileIdx = 0;
 
-    const sphere = new THREE.Mesh( sphereGeometry, sphereMaterial );
-    sphere.castShadow = true;
-    sphere.receiveShadow = true;
+for ( let i = 0; i < NUM_PROJECTILES; i ++ ) {
 
-    scene.add( sphere );
+    const diamondMesh = new THREE.Mesh( diamondGeometry, diamondMaterial );
+    diamondMesh.castShadow = true;
+    diamondMesh.receiveShadow = true;
 
-    spheres.push( {
-        mesh: sphere,
-        collider: new THREE.Sphere( new THREE.Vector3( 0, - 100, 0 ), SPHERE_RADIUS ),
+    scene.add( diamondMesh );
+
+    // Conservamos la física de esfera para las colisiones (collider)
+    projectiles.push( {
+        mesh: diamondMesh,
+        collider: new THREE.Sphere( new THREE.Vector3( 0, - 100, 0 ), PROJECTILE_RADIUS ),
         velocity: new THREE.Vector3()
     } );
 
 }
+// ==========================================
 
 const worldOctree = new Octree();
 const playerCollider = new Capsule( new THREE.Vector3( 0, 0.35, 0 ), new THREE.Vector3( 0, 1, 0 ), 0.35 );
@@ -134,16 +144,15 @@ function onWindowResize() {
 }
 
 function throwBall() {
-    const sphere = spheres[ sphereIdx ];
+    const projectile = projectiles[ projectileIdx ];
     camera.getWorldDirection( playerDirection );
-    sphere.collider.center.copy( playerCollider.end ).addScaledVector( playerDirection, playerCollider.radius * 1.5 );
+    projectile.collider.center.copy( playerCollider.end ).addScaledVector( playerDirection, playerCollider.radius * 1.5 );
 
-    // throw the ball with more force if we hold the button longer, and if we move forward
     const impulse = 15 + 30 * ( 1 - Math.exp( ( mouseTime - performance.now() ) * 0.001 ) );
-    sphere.velocity.copy( playerDirection ).multiplyScalar( impulse );
-    sphere.velocity.addScaledVector( playerVelocity, 2 );
+    projectile.velocity.copy( playerDirection ).multiplyScalar( impulse );
+    projectile.velocity.addScaledVector( playerVelocity, 2 );
 
-    sphereIdx = ( sphereIdx + 1 ) % spheres.length;
+    projectileIdx = ( projectileIdx + 1 ) % projectiles.length;
 }
 
 function playerCollisions() {
@@ -151,8 +160,7 @@ function playerCollisions() {
     playerOnFloor = false;
 
     if ( result ) {
-        // determine if the surface we bumped into is something we can stand on
-        playerOnFloor = result.normal.y >= 0.15; // allow slopes up to ~81° but ignore sheer vertical walls
+        playerOnFloor = result.normal.y >= 0.15;
 
         if ( ! playerOnFloor ) {
             playerVelocity.addScaledVector( result.normal, - result.normal.dot( playerVelocity ) );
@@ -168,7 +176,6 @@ function updatePlayer( deltaTime ) {
 
     if ( ! playerOnFloor ) {
         playerVelocity.y -= GRAVITY * deltaTime;
-        // small air resistance
         damping *= 0.1;
     }
 
@@ -180,23 +187,22 @@ function updatePlayer( deltaTime ) {
     camera.position.copy( playerCollider.end );
 }
 
-function playerSphereCollision( sphere ) {
+function playerSphereCollision( projectile ) {
     const center = vector1.addVectors( playerCollider.start, playerCollider.end ).multiplyScalar( 0.5 );
-    const sphere_center = sphere.collider.center;
-    const r = playerCollider.radius + sphere.collider.radius;
+    const sphere_center = projectile.collider.center;
+    const r = playerCollider.radius + projectile.collider.radius;
     const r2 = r * r;
 
-    // approximation: player = 3 spheres
     for ( const point of [ playerCollider.start, playerCollider.end, center ] ) {
         const d2 = point.distanceToSquared( sphere_center );
 
         if ( d2 < r2 ) {
             const normal = vector1.subVectors( point, sphere_center ).normalize();
             const v1 = vector2.copy( normal ).multiplyScalar( normal.dot( playerVelocity ) );
-            const v2 = vector3.copy( normal ).multiplyScalar( normal.dot( sphere.velocity ) );
+            const v2 = vector3.copy( normal ).multiplyScalar( normal.dot( projectile.velocity ) );
 
             playerVelocity.add( v2 ).sub( v1 );
-            sphere.velocity.add( v1 ).sub( v2 );
+            projectile.velocity.add( v1 ).sub( v2 );
 
             const d = ( r - Math.sqrt( d2 ) ) / 2;
             sphere_center.addScaledVector( normal, - d );
@@ -205,11 +211,11 @@ function playerSphereCollision( sphere ) {
 }
 
 function spheresCollisions() {
-    for ( let i = 0, length = spheres.length; i < length; i ++ ) {
-        const s1 = spheres[ i ];
+    for ( let i = 0, length = projectiles.length; i < length; i ++ ) {
+        const s1 = projectiles[ i ];
 
         for ( let j = i + 1; j < length; j ++ ) {
-            const s2 = spheres[ j ];
+            const s2 = projectiles[ j ];
             const d2 = s1.collider.center.distanceToSquared( s2.collider.center );
             const r = s1.collider.radius + s2.collider.radius;
             const r2 = r * r;
@@ -231,26 +237,34 @@ function spheresCollisions() {
 }
 
 function updateSpheres( deltaTime ) {
-    spheres.forEach( sphere => {
-        sphere.collider.center.addScaledVector( sphere.velocity, deltaTime );
-        const result = worldOctree.sphereIntersect( sphere.collider );
+    projectiles.forEach( projectile => {
+        projectile.collider.center.addScaledVector( projectile.velocity, deltaTime );
+        const result = worldOctree.sphereIntersect( projectile.collider );
 
         if ( result ) {
-            sphere.velocity.addScaledVector( result.normal, - result.normal.dot( sphere.velocity ) * 1.5 );
-            sphere.collider.center.add( result.normal.multiplyScalar( result.depth ) );
+            projectile.velocity.addScaledVector( result.normal, - result.normal.dot( projectile.velocity ) * 1.5 );
+            projectile.collider.center.add( result.normal.multiplyScalar( result.depth ) );
         } else {
-            sphere.velocity.y -= GRAVITY * deltaTime;
+            projectile.velocity.y -= GRAVITY * deltaTime;
         }
 
         const damping = Math.exp( - 1.5 * deltaTime ) - 1;
-        sphere.velocity.addScaledVector( sphere.velocity, damping );
-        playerSphereCollision( sphere );
+        projectile.velocity.addScaledVector( projectile.velocity, damping );
+        playerSphereCollision( projectile );
     } );
 
     spheresCollisions();
 
-    for ( const sphere of spheres ) {
-        sphere.mesh.position.copy( sphere.collider.center );
+    // Actualizamos la posición visual de los diamantes y les añadimos rotación
+    for ( const projectile of projectiles ) {
+        projectile.mesh.position.copy( projectile.collider.center );
+        
+        // Hacemos que el diamante rote basándose en su velocidad
+        if ( projectile.velocity.lengthSq() > 0.1 ) {
+            projectile.mesh.rotation.x += projectile.velocity.y * deltaTime * 0.5;
+            projectile.mesh.rotation.y += projectile.velocity.x * deltaTime * 0.5;
+            projectile.mesh.rotation.z += projectile.velocity.z * deltaTime * 0.5;
+        }
     }
 }
 
@@ -270,7 +284,6 @@ function getSideVector() {
 }
 
 function controls( deltaTime ) {
-    // gives a bit of air control
     const speedDelta = deltaTime * ( playerOnFloor ? 25 : 8 );
 
     if ( keyStates[ 'KeyW' ] ) {
